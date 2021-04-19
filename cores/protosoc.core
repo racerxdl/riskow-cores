@@ -1,0 +1,57 @@
+CAPI=2:
+name: teskeslab:riskow:protosoc:0.0.1
+description: Prototype SoC with Riskow
+
+filesets:
+  rtl:
+    depend:
+      - teskeslab:riskow:core
+      - teskeslab:riskow:digitalport
+      - teskeslab:riskow:timer
+    files:
+      - protosoc/top.v
+      - riskow/gcc/rom.mem: {is_include_file: true, copyto: gcc/rom.mem}
+    file_type: verilogSource
+
+  5a75b:
+    files: [protosoc/5a75bv7.0/5a-75b-v7.0.lpf : {file_type : LPF}]
+  i5:
+    files: [protosoc/i5/i5.lpf : {file_type : LPF}]
+  virtex6_365T_pcie_sfp:
+    files:
+      - protosoc/virtex6_365T_pcie_sfp/virtex6.ucf :  {file_type : UCF}
+
+targets:
+  # The "default" target is special in FuseSoC and used in dependencies.
+  # The "&default" is a YAML anchor referenced later.
+  default: &default
+    filesets:
+      - rtl
+    toplevel: ProtoSOC
+
+  colorlight_5a75b:
+    default_tool : trellis
+    filesets : [rtl, 5a75b]
+    tools:
+      trellis:
+        nextpnr_options : [--25k --package CABGA256 --speed 6 --freq 25]
+    toplevel : ProtoSOC
+
+  colorlight_i5:
+    default_tool : trellis
+    filesets : [rtl, i5]
+    tools:
+      trellis:
+        nextpnr_options : [--25k --package CABGA381 --speed 6 --freq 25 --lpf-allow-unconstrained]
+    toplevel : ProtoSOC
+
+  virtex6_365T_pcie_sfp:
+    default_tool : ise
+    filesets : [rtl, virtex6_365T_pcie_sfp]
+    tools:
+      ise:
+        family  : Virtex6
+        device  : xc6vlx365t
+        package : ff1156
+        speed   : -1
+    toplevel : ProtoSOC
