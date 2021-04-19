@@ -1,0 +1,57 @@
+CAPI=2:
+name: teskeslab:riskow:core:0.0.1
+description: RV32E Core made for learning and fun
+
+filesets:
+  rtl:
+    files:
+      - riskow/cpu/alu.v
+      - riskow/cpu/cpu.v
+      - riskow/cpu/intruction_decoder.v
+      - riskow/cpu/program_counter.v
+      - riskow/cpu/register_bank_dp.v
+    file_type: verilogSource
+
+  tb:
+    files:
+      - riskow/cpu/alu_tb.v
+      - riskow/cpu/cpu_tb.v
+      - riskow/cpu/program_counter_tb.v
+      - riskow/cpu/register_bank_tb.v
+      - riskow/testdata/test_alu.mem: {is_include_file: true, copyto: testdata/test_alu.mem}
+      - riskow/testdata/test_jaljalr.mem: {is_include_file: true, copyto: testdata/test_jaljalr.mem}
+      - riskow/testdata/test_jmps.mem: {is_include_file: true, copyto: testdata/test_jmps.mem}
+      - riskow/testdata/test_loadstore.mem: {is_include_file: true, copyto: testdata/test_loadstore.mem}
+      - riskow/testdata/test_luiauipc.mem: {is_include_file: true, copyto: testdata/test_luiauipc.mem}
+    file_type: verilogSource
+
+targets:
+  # The "default" target is special in FuseSoC and used in dependencies.
+  # The "&default" is a YAML anchor referenced later.
+  default: &default
+    filesets:
+      - rtl
+    toplevel: CPU
+
+  # The "sim" target simulates the design. (It could have any name.)
+  sim:
+    # Copy all key/value pairs from the "default" target.
+    <<: *default
+    description: Simulate the design
+    default_tool: icarus
+    filesets_append:
+      - tb
+    toplevel: CPUTest
+    tools:
+      icarus:
+        iverilog_options:
+          - -g2012 # Use SystemVerilog-2012
+      modelsim:
+        vlog_options:
+          - -timescale=1ns/1ns
+
+# provider:
+#   name    : github
+#   user    : racerxdl
+#   repo    : riskow
+#   version : v0.0.1
