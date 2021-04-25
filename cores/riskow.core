@@ -7,9 +7,9 @@ filesets:
     files:
       - riskow/cpu/alu.v
       - riskow/cpu/cpu.v
-      - riskow/cpu/intruction_decoder.v
+      - riskow/cpu/instruction_decoder.v
       - riskow/cpu/program_counter.v
-      - riskow/cpu/register_bank_dp.v
+      - riskow/cpu/register_bank.v
     file_type: verilogSource
 
   tb:

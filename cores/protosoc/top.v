@@ -60,6 +60,15 @@ wire          t0ChipSelect;
 wire          t0Write;
 wire          t0WriteCommand;
 
+// CSR
+reg   [31:0]  csrDataIn;
+wire  [63:0]  instructionsExecuted;
+wire  [31:0]  csrDataOut;
+wire  [11:0]  csrNumber;
+wire          csrWriteEnable;
+reg   [63:0]  cycleCount;
+
+
 CPU # (
   .EXCEPTION_HANDLING(0)
 ) cpu (
@@ -71,7 +80,12 @@ CPU # (
   cpuBusValid,
   cpuBusInstr,
   cpuBusReady,
-  cpuBusWriteEnable
+  cpuBusWriteEnable,
+  csrDataIn,
+  csrDataOut,
+  csrNumber,
+  csrWriteEnable,
+  instructionsExecuted
 );
 
 DigitalPort portA (clk, reset, portChipSelectA, portWriteIO, portWriteDirection, portDataIn, portDataOutA, portDirectionA, _IOPortA);
@@ -93,7 +107,7 @@ wire ramChipSelect;
 
 
 initial begin
-    $readmemh("gcc/rom.mem", ROM);
+  $readmemh("gcc/rom.mem", ROM);
 end
 
 always @(posedge clk)
@@ -130,11 +144,25 @@ begin
         end
       end
       busReady <= 1;
+
+      case (csrNumber)
+      12'hB00: // Machine Cycle counter L
+        csrDataIn <= cycleCount[31:0];
+      12'hB02: // Machine Instruction Counter L
+        csrDataIn <= instructionsExecuted[31:0];
+      12'hB80: // Machine Cycle counter H
+        csrDataIn <= cycleCount[63:32];
+      12'hB82: // Machine Instruction Counter H
+        csrDataIn <= instructionsExecuted[63:32];
+      default:
+        csrDataIn <= 0;
+    endcase
     end
   end
   else
   begin
-    busReady <= 0;
+    busReady    <= 0;
+    cycleCount  <= 0;
   end
 
   `ifdef SIMULATION

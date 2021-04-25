@@ -42,7 +42,7 @@ targets:
     filesets : [rtl, i5]
     tools:
       trellis:
-        nextpnr_options : [--25k --package CABGA381 --speed 6 --freq 25 --lpf-allow-unconstrained]
+        nextpnr_options : [--ignore-loops --25k --package CABGA381 --speed 6 --freq 25 --lpf-allow-unconstrained]
     toplevel : ProtoSOC
 
   virtex6_365T_pcie_sfp:
