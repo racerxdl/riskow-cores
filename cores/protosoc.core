@@ -20,13 +20,26 @@ filesets:
   virtex6_365T_pcie_sfp:
     files:
       - protosoc/virtex6_365T_pcie_sfp/virtex6.ucf :  {file_type : UCF}
-
+  catapult_v2:
+    files:
+      - protosoc/catapult_v2/catapult_v2.sdc: { file_type: SDC }
+      - protosoc/catapult_v2/catapult_v2.tcl: { file_type: tclSource }
 targets:
   # The "default" target is special in FuseSoC and used in dependencies.
   # The "&default" is a YAML anchor referenced later.
   default: &default
     filesets:
       - rtl
+    toplevel: ProtoSOC
+
+  catapult_v2:
+    default_tool: quartus
+    description: Microsoft Storey Peak card v2
+    filesets: [rtl, catapult_v2]
+    tools:
+      quartus:
+        family: Stratix V
+        device: 5SGSMD5K1F40C2
     toplevel: ProtoSOC
 
   colorlight_5a75b:
