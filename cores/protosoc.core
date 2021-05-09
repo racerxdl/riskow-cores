@@ -24,6 +24,14 @@ filesets:
     files:
       - protosoc/catapult_v2/catapult_v2.sdc: { file_type: SDC }
       - protosoc/catapult_v2/catapult_v2.tcl: { file_type: tclSource }
+  catapult_v2:
+    files:
+      - protosoc/catapult_v2/catapult_v2.sdc: { file_type: SDC }
+      - protosoc/catapult_v2/catapult_v2.tcl: { file_type: tclSource }
+  qmtech_xc7a35t_ddr3:
+    files:
+      - protosoc/qmtech_xc7a35t_ddr3/qm_xc7a35t_ddr3.xdc: { file_type: XDC }
+
 targets:
   # The "default" target is special in FuseSoC and used in dependencies.
   # The "&default" is a YAML anchor referenced later.
@@ -68,3 +76,11 @@ targets:
         package : ff1156
         speed   : -1
     toplevel : ProtoSOC
+
+  qmtech_xc7a35t_ddr3:
+    default_tool: vivado
+    description: QMTech Artix7
+    filesets: [rtl, qmtech_xc7a35t_ddr3]
+    tools:
+      vivado: { part: xc7a35tftg256-1 }
+    toplevel: ProtoSOC
