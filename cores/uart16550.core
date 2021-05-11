@@ -1,0 +1,32 @@
+CAPI=2:
+name: ::uart16550:1.5.5
+description: UART 16550 transceiver
+
+filesets:
+  rtl:
+    files:
+      - rtl/verilog/raminfr.v
+      - rtl/verilog/uart_receiver.v
+      - rtl/verilog/uart_regs.v
+      - rtl/verilog/uart_rfifo.v
+      - rtl/verilog/uart_sync_flops.v
+      - rtl/verilog/uart_tfifo.v
+      - rtl/verilog/uart_top.v
+      - rtl/verilog/uart_transmitter.v
+      - rtl/verilog/uart_wb.v
+      - rtl/verilog/uart_defines.v: {is_include_file: true}
+    file_type: verilogSource
+
+targets:
+  # The "default" target is special in FuseSoC and used in dependencies.
+  # The "&default" is a YAML anchor referenced later.
+  default: &default
+    filesets:
+      - rtl
+    toplevel: uart_top
+
+provider:
+  name    : github
+  user    : olofk
+  repo    : uart16550
+  version : v1.5.5
