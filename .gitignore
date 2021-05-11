@@ -1,2 +1,5 @@
 build
 fusesoc.conf
+*.o
+*.elf
+

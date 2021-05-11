@@ -8,9 +8,17 @@ filesets:
       - teskeslab:riskow:core
       - teskeslab:riskow:digitalport
       - teskeslab:riskow:timer
+      - teskeslab:tools:spicore
+      - ::uart16550:1.5.5
     files:
       - protosoc/top.v
-      - riskow/gcc/rom.mem: {is_include_file: true, copyto: gcc/rom.mem}
+      # - riskow/gcc/rom.mem: {is_include_file: true, copyto: gcc/rom.mem}
+      - protosoc/gcc/rom.mem: {is_include_file: true, copyto: gcc/rom.mem}
+    file_type: verilogSource
+  tb:
+    files:
+      - protosoc/top_tb.v
+      - protosoc/gcc/rom.mem: {is_include_file: true, copyto: gcc/test.mem}
     file_type: verilogSource
 
   5a75b:
@@ -40,6 +48,24 @@ targets:
       - rtl
     toplevel: ProtoSOC
 
+  # The "sim" target simulates the design. (It could have any name.)
+  sim:
+    # Copy all key/value pairs from the "default" target.
+    <<: *default
+    description: Simulate the design
+    default_tool: icarus
+    filesets_append:
+      - tb
+    toplevel: ProtoSoCTest
+    parameters: [SIMULATION=1]
+    tools:
+      icarus:
+        iverilog_options:
+          - -g2012 # Use SystemVerilog-2012
+      modelsim:
+        vlog_options:
+          - -timescale=1ns/1ns
+
   catapult_v2:
     default_tool: quartus
     description: Microsoft Storey Peak card v2
@@ -53,6 +79,7 @@ targets:
   colorlight_5a75b:
     default_tool : trellis
     filesets : [rtl, 5a75b]
+    parameters: [ECP5=1]
     tools:
       trellis:
         nextpnr_options : [--25k --package CABGA256 --speed 6 --freq 25]
@@ -61,6 +88,7 @@ targets:
   colorlight_i5:
     default_tool : trellis
     filesets : [rtl, i5]
+    parameters: [ECP5=1]
     tools:
       trellis:
         nextpnr_options : [--ignore-loops --25k --package CABGA381 --speed 6 --freq 25 --lpf-allow-unconstrained]
@@ -84,3 +112,14 @@ targets:
     tools:
       vivado: { part: xc7a35tftg256-1 }
     toplevel: ProtoSOC
+
+
+parameters:
+  ECP5:
+    datatype    : int
+    description : Set to enable ECP5 specific overrides
+    paramtype   : vlogdefine
+  SIMULATION:
+    datatype    : int
+    description : Set to enable SIMULATION messages
+    paramtype   : vlogdefine

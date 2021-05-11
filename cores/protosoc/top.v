@@ -1,8 +1,16 @@
 module ProtoSOC (
-  input         clk,
-  input         rst,
-  inout         led,
-  inout [5:0]   lcd
+  input           clk,
+  input           rst,
+  inout           led,
+  inout   [5:0]   lcd,
+  output  wire    SPIOut,
+  input           SPIIn,
+  output  reg     SPICSn,
+  `ifndef ECP5
+  output  wire    SPIclk,
+  `endif
+  output  wire    uartTx,
+  input   wire    uartRx
 );
 
 // self-reset w/ self-detect logic
@@ -24,12 +32,12 @@ end
 
 // BUS
 wire  [31:0]  busAddress;
-wire  [31:0]  busWriteEnable;
+wire          busWriteEnable;
 wire  [31:0]  busDataIn;
 reg   [31:0]  busDataOut = 0;
 wire          busValid;           // 1 => Start bus transaction, 0 => Don't use bus
 wire          busInstr;           // 1 => Instruction, 0 => Data
-reg           busReady = 0;       // 1 => Bus is ready with data, 0 => If bus is busy
+reg           busReady = 0;       // 1 => Bus is spiControllerReady with data, 0 => If bus is busy
 
 // CPU
 wire  [31:0]  cpuDataIn;
@@ -88,9 +96,63 @@ CPU # (
   instructionsExecuted
 );
 
+reg   [7:0]   spiDataTx = 0;
+wire  [7:0]   spiDataRx;
+
+wire          spiControllerReady;
+reg           spiValid = 0;
+
+`ifdef ECP5
+// ECP5 needs USRMCLK primitive to drive SPI Clock
+wire tristate = 1'b0;
+USRMCLK u1 (.USRMCLKI(SPIclk), .USRMCLKTS(tristate));
+`endif
+
+SPIController spic (
+  .clk(clk),
+  .reset(reset),
+
+  // SPI Port
+  .spiOut(SPIOut),
+  .spiIn(SPIIn),
+  .spiClk(SPIclk),
+
+  // SPI Data
+  .dataTx(spiDataTx),
+  .dataRx(spiDataRx),
+
+  .ready(spiControllerReady),  // Core is ready
+  .valid(spiValid)   // Input data is valid
+);
+
 DigitalPort portA (clk, reset, portChipSelectA, portWriteIO, portWriteDirection, portDataIn, portDataOutA, portDirectionA, _IOPortA);
 DigitalPort portB (clk, reset, portChipSelectB, portWriteIO, portWriteDirection, portDataIn, portDataOutB, portDirectionB, _IOPortB);
 Timer       t0    (clk, reset, t0ChipSelect, t0Write, t0WriteCommand, t0DataIn, t0DataOut);
+
+wire  [2:0]   uartAddrInput;
+wire  [7:0]   uartDataInput;
+wire  [7:0]   uartDataOutput;
+wire  [3:0]   uartByteSelect = 4'b0001; // We only do full 32 bit RW, so let's mark only LSB
+wire          uartOutput;
+wire          uartAck;
+wire          uartChipSelect;
+wire          uartWriteEnable;
+wire          uartRts, uartCts, uartDtr, uartDsr, uartRi, uartDcd, uartInterrupt; // Unused
+
+uart_top uart (
+  clk,
+
+  // Wishbone signals
+  reset, uartAddrInput, uartDataInput, uartDataOutput, uartWriteEnable, uartChipSelect, uartChipSelect, uartAck, uartByteSelect,
+  uartInterrupt, // interrupt request
+
+  // UART signals
+  // serial input/output
+  uartTx, uartRx,
+
+  // modem signals
+  uartRts, uartCts, uartDtr, uartDsr, uartRi, uartDcd
+);
 
 assign led = _IOPortB[0];
 assign lcd = _IOPortA[5:0];
@@ -105,9 +167,10 @@ reg [31:0]  RAMFF;
 wire romChipSelect;
 wire ramChipSelect;
 
-
 initial begin
+  `ifndef SIMULATION
   $readmemh("gcc/rom.mem", ROM);
+  `endif
 end
 
 always @(posedge clk)
@@ -135,15 +198,37 @@ begin
         begin
           // Nothing
         end
+        else if (spiCChipSelect)
+        begin
+          if (spiDataWrite)
+            spiDataTx <= busDataIn[7:0];
+          else // Reg Write
+            spiValid  <= 1;
+        end
+        else if (uartChipSelect)
+        begin
+          // Nothing
+        end
         else
         begin
+          spiValid  <= 0; // Reset SPIValid
           `ifdef SIMULATION
           $error("Ummapped Memory Write at 0x%08x", busAddress);
           $finish;
           `endif
         end
       end
-      busReady <= 1;
+      else
+      begin
+        spiValid  <= 0; // Reset SPIValid
+      end
+      if (uartChipSelect)
+      begin
+        // UART has busy flag
+        busReady <= uartAck;
+      end
+      else
+        busReady <= 1;
 
       case (csrNumber)
       12'hB00: // Machine Cycle counter L
@@ -163,6 +248,8 @@ begin
   begin
     busReady    <= 0;
     cycleCount  <= 0;
+    spiDataTx   <= 0;
+    spiValid    <= 0;
   end
 
   `ifdef SIMULATION
@@ -183,6 +270,8 @@ begin
   else if (portChipSelectA) busDataOut <= portDirection ? portDirectionA : portDataOutA;
   else if (portChipSelectB) busDataOut <= portDirection ? portDirectionB : portDataOutB;
   else if (t0ChipSelect)    busDataOut <= t0DataOut;
+  else if (spiCChipSelect)  busDataOut <= spiBusOut;
+  else if (uartChipSelect)  busDataOut <= uartDataOutput;
   else
   begin
     busDataOut <= 0;
@@ -225,5 +314,21 @@ assign t0Write            = busAddress[2:0]   == 3'h0 && busWriteEnable;
 assign t0WriteCommand     = busAddress[2:0]   == 3'h4 && busWriteEnable;
 assign t0DataIn           = busDataIn;
 
+// SPI
+// DATA   => 0xF2000000
+// STATUS => 0xF2000004
+assign spiCChipSelect     = {busAddress[31:3], 3'b000} == 32'hF2000000;
+assign spiIsData          = busAddress[2:0] == 3'h0;
+assign spiDataWrite       = spiIsData  && busWriteEnable;
+assign spiStatusWrite     = !spiIsData && busWriteEnable;
+assign spiBusOut          = busAddress[2:0] == 3'h0 ? spiDataRx : spiControllerReady;
+
+
+// UART
+// 0xF300000x
+assign uartChipSelect     = {busAddress[31:5], 5'b00000} == 32'hF3000000;
+assign uartAddrInput      = busAddress[5:2]; // Since we operate at 32 bit, that aligns in a 32 bit boundary
+assign uartWriteEnable    = uartChipSelect && busWriteEnable;
+assign uartDataInput      = busDataIn[7:0];
 
 endmodule
